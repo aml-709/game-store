@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Админ-панель</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  {{ template "header.html" . }}
+
+  <h1>Добавить игру</h1>
+
+  <form action="/add-game" method="POST" class="admin-form">
+    <label>Название:</label><br>
+    <input type="text" name="title" required><br><br>
+
+    <label>Описание:</label><br>
+    <textarea name="description" rows="5" required></textarea><br><br>
+
+    <label>Цена:</label><br>
+    <input type="number" step="0.01" name="price" required><br><br>
+
+    <label>Ссылка на изображение:</label><br>
+    <input type="text" name="image_url" required><br><br>
+
+    <button type="submit">Добавить</button>
+  </form>
+
+  <p><a href="/">На главную</a></p>
+</body>
+</html>

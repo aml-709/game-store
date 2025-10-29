@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Game Store</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+  {{ template "header.html" . }}
+
+  <h1>Game Store</h1>
+  <div class="games">
+    {{range .}}
+      <div class="game">
+        <img src="{{.ImageURL}}" width="150">
+        <h3>{{.Title}}</h3>
+        <p>${{.Price}}</p>
+        <a href="/game?id={{.ID}}">Подробнее</a>
+      </div>
+    {{end}}
+  </div>
+</body>
+</html>

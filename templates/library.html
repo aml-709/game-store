@@ -1,0 +1,18 @@
+<!doctype html>
+<html>
+<head><title>Моя библиотека</title></head>
+<body>
+
+    {{ template "header.html" . }}
+
+  <h1>Библиотека</h1>
+  {{if .}}
+    <ul>
+      {{range .}}<li>{{.Title}} — <a href="/game?id={{.ID}}">Открыть</a></li>{{end}}
+    </ul>
+  {{else}}
+    <p>Пусто — купите игру!</p>
+  {{end}}
+  <p><a href="/">Магазин</a></p>
+</body>
+</html>

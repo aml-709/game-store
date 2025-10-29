@@ -1,0 +1,15 @@
+<!doctype html>
+<html>
+<head><title>Оплата</title></head>
+<body>
+
+    {{ template "header.html" . }}
+<h1>Оплата (мок)</h1>
+<p>Нажмите кнопку, чтобы симулировать оплату.</p>
+<form method="POST" action="/pay">
+  <input type="hidden" name="purchase_id" value="{{.PurchaseID}}">
+  <input type="hidden" name="email" value="{{.Email}}">
+  <button type="submit">Оплатить</button>
+</form>
+</body>
+</html>

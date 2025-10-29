@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>{{.Title}}</title>
+</head>
+<body>
+
+  {{ template "header.html" . }}
+
+  <h1>{{.Title}}</h1>
+  <img src="{{.ImageURL}}" width="200">
+  <p>{{.Description}}</p>
+  <strong>${{.Price}}</strong>
+  <br>
+  <a href="/">Назад</a>
+</body>
+</html>

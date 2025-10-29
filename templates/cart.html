@@ -1,0 +1,24 @@
+
+<!doctype html>
+<html>
+<head><title>Корзина</title></head>
+<body>
+    
+    {{ template "header.html" . }}
+    
+  <h1>Корзина</h1>
+  {{if .}}
+    <ul>
+      {{range .}}
+        <li>{{.Title}} — ${{.Price}} 
+          <a href="/remove-from-cart?id={{.ID}}">Удалить</a>
+        </li>
+      {{end}}
+    </ul>
+    <p><a href="/checkout">Оформить</a></p>
+  {{else}}
+    <p>Корзина пуста</p>
+  {{end}}
+  <p><a href="/">Вернуться в магазин</a></p>
+</body>
+</html>
