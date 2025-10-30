@@ -1,7 +1,9 @@
 package handlers
 
 import (
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"html/template"
 	"net/http"
 	"strconv"
@@ -12,29 +14,132 @@ type Handler struct {
 	DB *sql.DB
 }
 
-// --- Главная страница ---
+// --- Auth helpers ---
+func hashPassword(password string) string {
+	hash := sha256.Sum256([]byte(password))
+	return hex.EncodeToString(hash[:])
+}
+
+func (h *Handler) getCurrentUser(r *http.Request) (int, error) {
+	cookie, err := r.Cookie("user_id")
+	if err != nil {
+		return 0, err
+	}
+	return strconv.Atoi(cookie.Value)
+}
+
+// --- Auth handlers ---
+func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
+	if r.Method == "POST" {
+		username := r.FormValue("username")
+		password := r.FormValue("password")
+
+		var exists bool
+		err := h.DB.QueryRow("SELECT EXISTS(SELECT 1 FROM customers WHERE username = ?)",
+			username).Scan(&exists)
+		if err != nil || exists {
+			http.Error(w, "Username already taken", http.StatusBadRequest)
+			return
+		}
+
+		hashedPassword := hashPassword(password)
+		_, err = h.DB.Exec("INSERT INTO customers (username, password) VALUES (?, ?)",
+			username, hashedPassword)
+		if err != nil {
+			http.Error(w, "Registration failed", http.StatusInternalServerError)
+			return
+		}
+
+		http.Redirect(w, r, "/login", http.StatusSeeOther)
+		return
+	}
+
+	tmpl := template.Must(template.ParseFiles(
+		"templates/header.html",
+		"templates/register.html",
+	))
+	tmpl.ExecuteTemplate(w, "register.html", nil)
+}
+
+func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
+	if r.Method == "POST" {
+		username := r.FormValue("username")
+		password := r.FormValue("password")
+		hashedPassword := hashPassword(password)
+
+		var id int
+		err := h.DB.QueryRow("SELECT id FROM customers WHERE username = ? AND password = ?",
+			username, hashedPassword).Scan(&id)
+		if err != nil {
+			http.Error(w, "Invalid credentials", http.StatusUnauthorized)
+			return
+		}
+
+		http.SetCookie(w, &http.Cookie{
+			Name:  "user_id",
+			Value: strconv.Itoa(id),
+			Path:  "/",
+		})
+
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+		return
+	}
+
+	tmpl := template.Must(template.ParseFiles(
+		"templates/header.html",
+		"templates/login.html",
+	))
+	tmpl.ExecuteTemplate(w, "login.html", nil)
+}
+
+func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
+	http.SetCookie(w, &http.Cookie{
+		Name:   "user_id",
+		Value:  "",
+		Path:   "/",
+		MaxAge: -1,
+	})
+	http.Redirect(w, r, "/", http.StatusSeeOther)
+}
+
+// --- Existing handlers with auth ---
+
 func (h *Handler) Home(w http.ResponseWriter, r *http.Request) {
+	userID, _ := h.getCurrentUser(r)
+
 	rows, _ := h.DB.Query("SELECT id, title, price, image_url FROM games")
 	defer rows.Close()
 
-	type Game struct {
+	var games []struct {
 		ID       int
 		Title    string
 		Price    float64
 		ImageURL string
 	}
-	var games []Game
 	for rows.Next() {
-		var g Game
+		var g struct {
+			ID       int
+			Title    string
+			Price    float64
+			ImageURL string
+		}
 		rows.Scan(&g.ID, &g.Title, &g.Price, &g.ImageURL)
 		games = append(games, g)
+	}
+
+	data := struct {
+		UserID int
+		Games  interface{}
+	}{
+		UserID: userID,
+		Games:  games,
 	}
 
 	tmpl := template.Must(template.ParseFiles(
 		"templates/header.html",
 		"templates/index.html",
 	))
-	tmpl.ExecuteTemplate(w, "index.html", games)
+	tmpl.ExecuteTemplate(w, "index.html", data)
 }
 
 // --- Страница игры ---
@@ -99,6 +204,7 @@ func (h *Handler) AddToCart(w http.ResponseWriter, r *http.Request) {
 
 // --- Просмотр корзины ---
 func (h *Handler) Cart(w http.ResponseWriter, r *http.Request) {
+	userID, _ := h.getCurrentUser(r)
 	cookie, err := r.Cookie("cart")
 	var games []struct {
 		ID    int
@@ -124,42 +230,62 @@ func (h *Handler) Cart(w http.ResponseWriter, r *http.Request) {
 			games = append(games, g)
 		}
 	}
+
+	data := struct {
+		UserID int
+		Games  interface{}
+	}{
+		UserID: userID,
+		Games:  games,
+	}
+
 	tmpl := template.Must(template.ParseFiles(
 		"templates/header.html",
 		"templates/cart.html",
 	))
-	tmpl.ExecuteTemplate(w, "cart.html", games)
+	tmpl.ExecuteTemplate(w, "cart.html", data)
 }
 
 // --- Оплата (оформление покупки) ---
 func (h *Handler) Checkout(w http.ResponseWriter, r *http.Request) {
+	userID, _ := h.getCurrentUser(r)
 	cookie, err := r.Cookie("cart")
 	if err != nil || cookie.Value == "" {
 		http.Redirect(w, r, "/cart", http.StatusSeeOther)
 		return
 	}
+
 	ids := split(cookie.Value)
-	// Добавляем покупку в историю
-	res, _ := h.DB.Exec("INSERT INTO purchases (customer_id, total) VALUES (?, ?)", 1, 100.0)
+	res, _ := h.DB.Exec("INSERT INTO purchases (customer_id, total) VALUES (?, ?)", userID, 100.0)
 	purchaseID, _ := res.LastInsertId()
+
 	for _, id := range ids {
 		h.DB.Exec("INSERT INTO purchase_items (purchase_id, game_id) VALUES (?, ?)", purchaseID, id)
-		h.DB.Exec("INSERT INTO library (customer_id, game_id, purchase_id) VALUES (?, ?, ?)", 1, id, purchaseID)
+		h.DB.Exec("INSERT INTO library (customer_id, game_id, purchase_id) VALUES (?, ?, ?)", userID, id, purchaseID)
 	}
+
 	http.SetCookie(w, &http.Cookie{
 		Name:   "cart",
 		Value:  "",
 		Path:   "/",
 		MaxAge: -1,
 	})
+
+	data := struct {
+		UserID     int
+		PurchaseID int64
+		Email      string
+	}{
+		UserID:     userID,
+		PurchaseID: purchaseID,
+		Email:      "user@example.com",
+	}
+
 	tmpl := template.Must(template.ParseFiles(
 		"templates/header.html",
 		"templates/pay.html",
 	))
-	tmpl.ExecuteTemplate(w, "pay.html", map[string]interface{}{
-		"PurchaseID": purchaseID,
-		"Email":      "user@example.com",
-	})
+	tmpl.ExecuteTemplate(w, "pay.html", data)
 }
 
 // --- Просмотр библиотеки пользователя ---
@@ -219,4 +345,16 @@ func split(s string) []string {
 		}
 	}
 	return out
+}
+
+// AuthMiddleware handles authentication
+func (h *Handler) AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		userID, err := h.getCurrentUser(r)
+		if err != nil || userID == 0 {
+			http.Redirect(w, r, "/login", http.StatusSeeOther)
+			return
+		}
+		next.ServeHTTP(w, r)
+	}
 }

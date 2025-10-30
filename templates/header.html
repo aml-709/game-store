@@ -15,12 +15,20 @@
         <span class="navbar-toggler-icon"></span>
       </button>
       <div class="collapse navbar-collapse" id="navbarNav">
-        <ul class="navbar-nav ms-auto">
+        <ul class="navbar-nav me-auto">
           <li class="nav-item"><a class="nav-link" href="/">Главная</a></li>
           <li class="nav-item"><a class="nav-link" href="/cart">Корзина</a></li>
           <li class="nav-item"><a class="nav-link" href="/library">Моя библиотека</a></li>
           <li class="nav-item"><a class="nav-link" href="/purchases">История покупок</a></li>
           <li class="nav-item"><a class="nav-link" href="/admin">Админка</a></li>
+        </ul>
+        <ul class="navbar-nav">
+          {{ if .UserID }}
+            <li class="nav-item"><a class="nav-link" href="/logout">Выйти</a></li>
+          {{ else }}
+            <li class="nav-item"><a class="nav-link" href="/login">Войти</a></li>
+            <li class="nav-item"><a class="nav-link" href="/register">Регистрация</a></li>
+          {{ end }}
         </ul>
       </div>
     </div>
