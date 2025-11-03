@@ -7,24 +7,39 @@
 <body>
   {{ template "header.html" . }}
 
-  <h1>Добавить игру</h1>
+  <div class="container">
+    <h2 class="mb-4">Добавить игру</h2>
 
-  <form action="/add-game" method="POST" class="admin-form">
-    <label>Название:</label><br>
-    <input type="text" name="title" required><br><br>
+    <div class="card">
+      <div class="card-body">
+        <form action="/add-game" method="POST">
+          <div class="mb-3">
+            <label class="form-label">Название:</label>
+            <input type="text" class="form-control" name="title" required>
+          </div>
 
-    <label>Описание:</label><br>
-    <textarea name="description" rows="5" required></textarea><br><br>
+          <div class="mb-3">
+            <label class="form-label">Описание:</label>
+            <textarea class="form-control" name="description" rows="5" required></textarea>
+          </div>
 
-    <label>Цена:</label><br>
-    <input type="number" step="0.01" name="price" required><br><br>
+          <div class="mb-3">
+            <label class="form-label">Цена:</label>
+            <input type="number" step="0.01" class="form-control" name="price" required>
+          </div>
 
-    <label>Ссылка на изображение:</label><br>
-    <input type="text" name="image_url" required><br><br>
+          <div class="mb-3">
+            <label class="form-label">Ссылка на изображение:</label>
+            <input type="text" class="form-control" name="image_url">
+          </div>
 
-    <button type="submit">Добавить</button>
-  </form>
+          <button type="submit" class="btn btn-primary">Добавить</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
 
-  <p><a href="/">На главную</a></p>
+</main>
 </body>
 </html>

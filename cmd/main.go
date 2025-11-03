@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log"
 	"net/http"
 
 	"github.com/aml-709/game-store/internal/handlers"
@@ -21,6 +22,7 @@ func main() {
 	http.HandleFunc("/checkout", h.AuthMiddleware(h.Checkout))
 	http.HandleFunc("/library", h.AuthMiddleware(h.Library))
 	http.HandleFunc("/purchases", h.AuthMiddleware(h.Purchases))
+	http.HandleFunc("/account", h.AuthMiddleware(h.Account))
 
 	// Public routes
 	http.HandleFunc("/", h.Home)
@@ -31,6 +33,6 @@ func main() {
 
 	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
 
-	println("Server running on http://localhost:8080")
-	http.ListenAndServe(":8080", nil)
+	log.Println("Server running on http://localhost:8080")
+	log.Fatal(http.ListenAndServe(":8080", nil))
 }

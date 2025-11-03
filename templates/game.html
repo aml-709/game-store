@@ -1,17 +1,30 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>{{.Title}}</title>
+  <title>{{ .Game.Title }}</title>
+  <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-
   {{ template "header.html" . }}
 
-  <h1>{{.Title}}</h1>
-  <img src="{{.ImageURL}}" width="200">
-  <p>{{.Description}}</p>
-  <strong>${{.Price}}</strong>
-  <br>
-  <a href="/">Назад</a>
+  <div class="container">
+    <div class="row">
+      <div class="col-md-5">
+        <img src="{{ .Game.ImageURL }}" class="img-fluid rounded" alt="{{ .Game.Title }}">
+      </div>
+      <div class="col-md-7">
+        <h1 class="mb-3">{{ .Game.Title }}</h1>
+        <p class="text-muted mb-2"><strong>{{ printf "%.2f" .Game.Price }}</strong> $</p>
+        <p class="mb-4">{{ .Game.Description }}</p>
+
+        <form action="/add-to-cart" method="POST" class="d-inline">
+          <input type="hidden" name="id" value="{{ .Game.ID }}">
+          <button type="submit" class="btn btn-success btn-lg">В корзину</button>
+        </form>
+        <a href="/" class="btn btn-outline-secondary btn-lg ms-2">Назад</a>
+      </div>
+    </div>
+  </div>
+
 </body>
 </html>

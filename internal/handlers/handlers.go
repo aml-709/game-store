@@ -1,97 +1,142 @@
 package handlers
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
 	"html/template"
+	"log"
 	"net/http"
 	"strconv"
-	"strings"
 )
 
 type Handler struct {
 	DB *sql.DB
 }
 
-// --- Auth helpers ---
-func hashPassword(password string) string {
-	hash := sha256.Sum256([]byte(password))
-	return hex.EncodeToString(hash[:])
+// PageData — универсальная структура, передаваемая в шаблоны.
+// Заполняйте нужные поля в обработчиках (Games, Game, Purchases, Recommended и т.д.)
+type PageData struct {
+	UserID      int
+	Username    string
+	Games       interface{}
+	Game        interface{}
+	Purchases   interface{}
+	Recommended interface{}
+	// можно добавлять поля по мере необходимости
+}
+
+func hashPassword(p string) string {
+	h := sha256.Sum256([]byte(p))
+	return hex.EncodeToString(h[:])
 }
 
 func (h *Handler) getCurrentUser(r *http.Request) (int, error) {
-	cookie, err := r.Cookie("user_id")
+	c, err := r.Cookie("user_id")
 	if err != nil {
 		return 0, err
 	}
-	return strconv.Atoi(cookie.Value)
+	id, err := strconv.Atoi(c.Value)
+	if err != nil {
+		log.Printf("getCurrentUser: invalid user_id cookie value=%q err=%v", c.Value, err)
+		return 0, err
+	}
+	return id, nil
 }
 
-// --- Auth handlers ---
+func (h *Handler) getUsernameByID(id int) string {
+	var username string
+	_ = h.DB.QueryRow("SELECT username FROM customers WHERE id = ?", id).Scan(&username)
+	return username
+}
+
+func (h *Handler) renderTemplate(w http.ResponseWriter, tmplFile string, data PageData) {
+	// parse all templates once so {{ template "header.html" . }} works reliably
+	tmpl, err := template.ParseGlob("templates/*.html")
+	if err != nil {
+		log.Printf("renderTemplate: parse error %v", err)
+		http.Error(w, "Template parse error", http.StatusInternalServerError)
+		return
+	}
+
+	// Execute into buffer first to avoid partial writes and double WriteHeader
+	var buf bytes.Buffer
+	if err := tmpl.ExecuteTemplate(&buf, tmplFile, data); err != nil {
+		log.Printf("renderTemplate: exec error %v", err)
+		http.Error(w, "Template exec error", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(buf.Bytes())
+}
+
+// Register handler
 func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
-	if r.Method == "POST" {
+	if r.Method == http.MethodPost {
 		username := r.FormValue("username")
 		password := r.FormValue("password")
-
+		if username == "" || password == "" {
+			http.Error(w, "Missing fields", http.StatusBadRequest)
+			return
+		}
 		var exists bool
-		err := h.DB.QueryRow("SELECT EXISTS(SELECT 1 FROM customers WHERE username = ?)",
-			username).Scan(&exists)
-		if err != nil || exists {
-			http.Error(w, "Username already taken", http.StatusBadRequest)
+		_ = h.DB.QueryRow("SELECT EXISTS(SELECT 1 FROM customers WHERE username = ?)", username).Scan(&exists)
+		if exists {
+			http.Error(w, "Username taken", http.StatusBadRequest)
 			return
 		}
-
-		hashedPassword := hashPassword(password)
-		_, err = h.DB.Exec("INSERT INTO customers (username, password) VALUES (?, ?)",
-			username, hashedPassword)
+		_, err := h.DB.Exec("INSERT INTO customers (username, password) VALUES (?, ?)", username, hashPassword(password))
 		if err != nil {
-			http.Error(w, "Registration failed", http.StatusInternalServerError)
+			log.Printf("Register: insert error %v", err)
+			http.Error(w, "DB error", http.StatusInternalServerError)
 			return
 		}
-
 		http.Redirect(w, r, "/login", http.StatusSeeOther)
 		return
 	}
 
-	tmpl := template.Must(template.ParseFiles(
-		"templates/header.html",
-		"templates/register.html",
-	))
-	tmpl.ExecuteTemplate(w, "register.html", nil)
+	// GET
+	data := PageData{UserID: 0}
+	h.renderTemplate(w, "register.html", data)
 }
 
+// Login handler
 func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
-	if r.Method == "POST" {
+	if r.Method == http.MethodPost {
 		username := r.FormValue("username")
 		password := r.FormValue("password")
-		hashedPassword := hashPassword(password)
-
 		var id int
-		err := h.DB.QueryRow("SELECT id FROM customers WHERE username = ? AND password = ?",
-			username, hashedPassword).Scan(&id)
+		err := h.DB.QueryRow("SELECT id FROM customers WHERE username = ? AND password = ?", username, hashPassword(password)).Scan(&id)
 		if err != nil {
+			log.Printf("Login: failed for username=%q err=%v", username, err)
 			http.Error(w, "Invalid credentials", http.StatusUnauthorized)
 			return
 		}
 
+		// Set cookie explicitly (persist 7 days, HttpOnly, Lax same-site)
 		http.SetCookie(w, &http.Cookie{
-			Name:  "user_id",
-			Value: strconv.Itoa(id),
-			Path:  "/",
+			Name:     "user_id",
+			Value:    strconv.Itoa(id),
+			Path:     "/",
+			MaxAge:   7 * 24 * 60 * 60,
+			HttpOnly: true,
+			SameSite: http.SameSiteLaxMode,
+			// Secure: true, // uncomment when using HTTPS
 		})
 
+		log.Printf("Login: user %d logged in, cookie set", id)
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 		return
 	}
-
-	tmpl := template.Must(template.ParseFiles(
-		"templates/header.html",
-		"templates/login.html",
-	))
-	tmpl.ExecuteTemplate(w, "login.html", nil)
+	// GET
+	data := PageData{UserID: 0}
+	h.renderTemplate(w, "login.html", data)
 }
 
+// Logout handler
 func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 	http.SetCookie(w, &http.Cookie{
 		Name:   "user_id",
@@ -102,50 +147,65 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 
-// --- Existing handlers with auth ---
+// Auth middleware
+func (h *Handler) AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		uid, err := h.getCurrentUser(r)
+		if err != nil || uid == 0 {
+			http.Redirect(w, r, "/login", http.StatusSeeOther)
+			return
+		}
+		next.ServeHTTP(w, r)
+	}
+}
 
+// Home handler — пример: загружает список игр и передаёт UserID/Username
 func (h *Handler) Home(w http.ResponseWriter, r *http.Request) {
-	userID, _ := h.getCurrentUser(r)
-
-	rows, _ := h.DB.Query("SELECT id, title, price, image_url FROM games")
+	uid, _ := h.getCurrentUser(r)
+	rows, err := h.DB.Query("SELECT id, title, price, image_url FROM games ORDER BY id DESC")
+	if err != nil {
+		log.Printf("Home: db error %v", err)
+		http.Error(w, "DB error", http.StatusInternalServerError)
+		return
+	}
 	defer rows.Close()
 
-	var games []struct {
+	type G struct {
 		ID       int
 		Title    string
 		Price    float64
 		ImageURL string
 	}
+	var games []G
 	for rows.Next() {
-		var g struct {
-			ID       int
-			Title    string
-			Price    float64
-			ImageURL string
-		}
-		rows.Scan(&g.ID, &g.Title, &g.Price, &g.ImageURL)
+		var g G
+		_ = rows.Scan(&g.ID, &g.Title, &g.Price, &g.ImageURL)
 		games = append(games, g)
 	}
 
-	data := struct {
-		UserID int
-		Games  interface{}
-	}{
-		UserID: userID,
-		Games:  games,
+	data := PageData{
+		UserID:   uid,
+		Username: h.getUsernameByID(uid),
+		Games:    games,
 	}
-
-	tmpl := template.Must(template.ParseFiles(
-		"templates/header.html",
-		"templates/index.html",
-	))
-	tmpl.ExecuteTemplate(w, "index.html", data)
+	h.renderTemplate(w, "index.html", data)
 }
 
-// --- Страница игры ---
+// GameDetail handler
 func (h *Handler) GameDetail(w http.ResponseWriter, r *http.Request) {
-	id := r.URL.Query().Get("id")
-	row := h.DB.QueryRow("SELECT id, title, description, price, image_url FROM games WHERE id = ?", id)
+	uid, _ := h.getCurrentUser(r)
+
+	idStr := r.URL.Query().Get("id")
+	if idStr == "" {
+		http.NotFound(w, r)
+		return
+	}
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+
 	var g struct {
 		ID          int
 		Title       string
@@ -153,208 +213,102 @@ func (h *Handler) GameDetail(w http.ResponseWriter, r *http.Request) {
 		Price       float64
 		ImageURL    string
 	}
-	row.Scan(&g.ID, &g.Title, &g.Description, &g.Price, &g.ImageURL)
 
-	tmpl := template.Must(template.ParseFiles(
-		"templates/header.html",
-		"templates/game.html",
-	))
-	tmpl.ExecuteTemplate(w, "game.html", g)
-}
-
-// --- Админка (форма добавления игры) ---
-func (h *Handler) Admin(w http.ResponseWriter, r *http.Request) {
-	tmpl := template.Must(template.ParseFiles(
-		"templates/header.html",
-		"templates/admin.html",
-	))
-	tmpl.ExecuteTemplate(w, "admin.html", nil)
-}
-
-// --- Обработка добавления игры ---
-func (h *Handler) AddGame(w http.ResponseWriter, r *http.Request) {
-	if r.Method == "POST" {
-		title := r.FormValue("title")
-		description := r.FormValue("description")
-		price, _ := strconv.ParseFloat(r.FormValue("price"), 64)
-		imageURL := r.FormValue("image_url")
-		h.DB.Exec("INSERT INTO games (title, description, price, image_url) VALUES (?, ?, ?, ?)", title, description, price, imageURL)
-		http.Redirect(w, r, "/", http.StatusSeeOther)
+	err = h.DB.QueryRow("SELECT id, title, description, price, image_url FROM games WHERE id = ?", id).
+		Scan(&g.ID, &g.Title, &g.Description, &g.Price, &g.ImageURL)
+	if err == sql.ErrNoRows {
+		http.NotFound(w, r)
 		return
 	}
-	http.Redirect(w, r, "/admin", http.StatusSeeOther)
+	if err != nil {
+		log.Printf("GameDetail: db error: %v", err)
+		http.Error(w, "Database error", http.StatusInternalServerError)
+		return
+	}
+
+	data := PageData{
+		UserID:   uid,
+		Username: h.getUsernameByID(uid),
+		Game:     g,
+	}
+	h.renderTemplate(w, "game.html", data)
 }
 
-// --- Добавление игры в корзину ---
+// Stubs for other handlers (you can expand them as needed)
+func (h *Handler) Admin(w http.ResponseWriter, r *http.Request) {
+	http.Redirect(w, r, "/", http.StatusSeeOther)
+}
+func (h *Handler) AddGame(w http.ResponseWriter, r *http.Request) {
+	http.Redirect(w, r, "/", http.StatusSeeOther)
+}
 func (h *Handler) AddToCart(w http.ResponseWriter, r *http.Request) {
-	id := r.FormValue("id")
-	cart := r.FormValue("cart")
-	if cart != "" {
-		cart += "," + id
-	} else {
-		cart = id
-	}
-	http.SetCookie(w, &http.Cookie{
-		Name:  "cart",
-		Value: cart,
-		Path:  "/",
-	})
-	http.Redirect(w, r, "/cart", http.StatusSeeOther)
+	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
-
-// --- Просмотр корзины ---
 func (h *Handler) Cart(w http.ResponseWriter, r *http.Request) {
-	userID, _ := h.getCurrentUser(r)
-	cookie, err := r.Cookie("cart")
-	var games []struct {
-		ID    int
-		Title string
-		Price float64
+	http.Redirect(w, r, "/", http.StatusSeeOther)
+}
+func (h *Handler) Checkout(w http.ResponseWriter, r *http.Request) {
+	http.Redirect(w, r, "/", http.StatusSeeOther)
+}
+func (h *Handler) Library(w http.ResponseWriter, r *http.Request) {
+	http.Redirect(w, r, "/", http.StatusSeeOther)
+}
+func (h *Handler) Purchases(w http.ResponseWriter, r *http.Request) {
+	http.Redirect(w, r, "/", http.StatusSeeOther)
+}
+func (h *Handler) Account(w http.ResponseWriter, r *http.Request) {
+	uid, err := h.getCurrentUser(r)
+	if err != nil || uid == 0 {
+		http.Redirect(w, r, "/login", http.StatusSeeOther)
+		return
 	}
-	if err == nil && cookie.Value != "" {
-		ids := split(cookie.Value)
-		query := "SELECT id, title, price FROM games WHERE id IN (?" + strings.Repeat(",?", len(ids)-1) + ")"
-		args := make([]interface{}, len(ids))
-		for i, v := range ids {
-			args[i] = v
-		}
-		rows, _ := h.DB.Query(query, args...)
+
+	// Забираем историю покупок
+	type Purchase struct {
+		ID    int
+		Date  string
+		Total float64
+	}
+	var purchases []Purchase
+	rows, err := h.DB.Query("SELECT id, date, total FROM purchases WHERE user_id = ? ORDER BY date DESC", uid)
+	if err == nil {
 		defer rows.Close()
 		for rows.Next() {
-			var g struct {
-				ID    int
-				Title string
-				Price float64
+			var p Purchase
+			if err := rows.Scan(&p.ID, &p.Date, &p.Total); err == nil {
+				purchases = append(purchases, p)
 			}
-			rows.Scan(&g.ID, &g.Title, &g.Price)
-			games = append(games, g)
 		}
+	} else {
+		log.Printf("Account: purchases query error: %v", err)
 	}
 
-	data := struct {
-		UserID int
-		Games  interface{}
-	}{
-		UserID: userID,
-		Games:  games,
+	// Рекомендованные — просто последние игры (пример)
+	type Rec struct {
+		ID       int
+		Title    string
+		Price    float64
+		ImageURL string
 	}
-
-	tmpl := template.Must(template.ParseFiles(
-		"templates/header.html",
-		"templates/cart.html",
-	))
-	tmpl.ExecuteTemplate(w, "cart.html", data)
-}
-
-// --- Оплата (оформление покупки) ---
-func (h *Handler) Checkout(w http.ResponseWriter, r *http.Request) {
-	userID, _ := h.getCurrentUser(r)
-	cookie, err := r.Cookie("cart")
-	if err != nil || cookie.Value == "" {
-		http.Redirect(w, r, "/cart", http.StatusSeeOther)
-		return
-	}
-
-	ids := split(cookie.Value)
-	res, _ := h.DB.Exec("INSERT INTO purchases (customer_id, total) VALUES (?, ?)", userID, 100.0)
-	purchaseID, _ := res.LastInsertId()
-
-	for _, id := range ids {
-		h.DB.Exec("INSERT INTO purchase_items (purchase_id, game_id) VALUES (?, ?)", purchaseID, id)
-		h.DB.Exec("INSERT INTO library (customer_id, game_id, purchase_id) VALUES (?, ?, ?)", userID, id, purchaseID)
-	}
-
-	http.SetCookie(w, &http.Cookie{
-		Name:   "cart",
-		Value:  "",
-		Path:   "/",
-		MaxAge: -1,
-	})
-
-	data := struct {
-		UserID     int
-		PurchaseID int64
-		Email      string
-	}{
-		UserID:     userID,
-		PurchaseID: purchaseID,
-		Email:      "user@example.com",
-	}
-
-	tmpl := template.Must(template.ParseFiles(
-		"templates/header.html",
-		"templates/pay.html",
-	))
-	tmpl.ExecuteTemplate(w, "pay.html", data)
-}
-
-// --- Просмотр библиотеки пользователя ---
-func (h *Handler) Library(w http.ResponseWriter, r *http.Request) {
-	rows, _ := h.DB.Query("SELECT games.id, games.title FROM library JOIN games ON library.game_id = games.id WHERE library.customer_id = ?", 1)
-	defer rows.Close()
-	var games []struct {
-		ID    int
-		Title string
-	}
-	for rows.Next() {
-		var g struct {
-			ID    int
-			Title string
+	var recs []Rec
+	rrows, err := h.DB.Query("SELECT id, title, price, image_url FROM games ORDER BY id DESC LIMIT 6")
+	if err == nil {
+		defer rrows.Close()
+		for rrows.Next() {
+			var g Rec
+			if err := rrows.Scan(&g.ID, &g.Title, &g.Price, &g.ImageURL); err == nil {
+				recs = append(recs, g)
+			}
 		}
-		rows.Scan(&g.ID, &g.Title)
-		games = append(games, g)
+	} else {
+		log.Printf("Account: recommended query error: %v", err)
 	}
-	tmpl := template.Must(template.ParseFiles(
-		"templates/header.html",
-		"templates/library.html",
-	))
-	tmpl.ExecuteTemplate(w, "library.html", games)
-}
 
-// --- Просмотр истории покупок ---
-func (h *Handler) Purchases(w http.ResponseWriter, r *http.Request) {
-	rows, _ := h.DB.Query("SELECT id, total, purchase_date FROM purchases WHERE customer_id = ?", 1)
-	defer rows.Close()
-	var purchases []struct {
-		ID    int
-		Total float64
-		Date  string
+	data := PageData{
+		UserID:      uid,
+		Username:    h.getUsernameByID(uid),
+		Purchases:   purchases,
+		Recommended: recs,
 	}
-	for rows.Next() {
-		var p struct {
-			ID    int
-			Total float64
-			Date  string
-		}
-		rows.Scan(&p.ID, &p.Total, &p.Date)
-		purchases = append(purchases, p)
-	}
-	tmpl := template.Must(template.ParseFiles(
-		"templates/header.html",
-		"templates/orders.html",
-	))
-	tmpl.ExecuteTemplate(w, "orders.html", purchases)
-}
-
-// --- Вспомогательная функция ---
-func split(s string) []string {
-	var out []string
-	for _, v := range strings.Split(s, ",") {
-		if v != "" {
-			out = append(out, v)
-		}
-	}
-	return out
-}
-
-// AuthMiddleware handles authentication
-func (h *Handler) AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		userID, err := h.getCurrentUser(r)
-		if err != nil || userID == 0 {
-			http.Redirect(w, r, "/login", http.StatusSeeOther)
-			return
-		}
-		next.ServeHTTP(w, r)
-	}
+	h.renderTemplate(w, "account.html", data)
 }

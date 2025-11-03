@@ -1,0 +1,55 @@
+{{ template "header.html" . }}
+
+<div class="container">
+  <div class="row mb-4">
+    <div class="col-md-8">
+      <h2>Привет, {{ .Username }}</h2>
+      <p class="text-muted">Здесь ваш профиль и история покупок.</p>
+    </div>
+    <div class="col-md-4 text-end">
+      <a href="/admin" class="btn btn-outline-secondary">Админка</a>
+      <a href="/cart" class="btn btn-success ms-2">Корзина</a>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col-md-6">
+      <h5>История покупок</h5>
+      {{ if .Purchases }}
+        <ul class="list-group">
+          {{ range .Purchases }}
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+              <div>Заказ #{{ .ID }} <br><small class="text-muted">{{ .Date }}</small></div>
+              <span class="badge bg-success">{{ printf "%.2f" .Total }} $</span>
+            </li>
+          {{ end }}
+        </ul>
+      {{ else }}
+        <div class="alert alert-info">Покупок пока нет.</div>
+      {{ end }}
+    </div>
+
+    <div class="col-md-6">
+      <h5>Рекомендовано</h5>
+      <div class="row row-cols-2 g-2">
+        {{ range .Recommended }}
+          <div class="col">
+            <div class="card">
+              <a href="/game?id={{ .ID }}">
+                <img src="{{ .ImageURL }}" class="card-img-top poster-img" alt="{{ .Title }}">
+              </a>
+              <div class="card-body p-2">
+                <div class="small text-truncate fw-bold">{{ .Title }}</div>
+                <div class="small text-muted">{{ printf "%.2f" .Price }} $</div>
+              </div>
+            </div>
+          </div>
+        {{ end }}
+      </div>
+    </div>
+  </div>
+</div>
+
+</main>
+</body>
+</html>
