@@ -21,10 +21,77 @@
           <input type="hidden" name="id" value="{{ .Game.ID }}">
           <button type="submit" class="btn btn-success btn-lg">В корзину</button>
         </form>
-        <a href="/" class="btn btn-outline-secondary btn-lg ms-2">Назад</a>
+      </div>
+    </div>
+
+    <hr/>
+
+    <div class="row mt-4">
+      <div class="col-md-8">
+        <h4>Комментарии</h4>
+
+        {{ if .Comments }}
+          <ul class="list-group mb-3">
+            {{ range .Comments }}
+              <li class="list-group-item">
+                <div class="d-flex justify-content-between">
+                  <div>
+                    <strong>{{ .Author }}</strong>
+                    <small class="text-muted"> — {{ .CreatedAt }}</small>
+                    <div>Оценка: 
+                      {{ if eq .Rating 5 }}Положительно{{ else if eq .Rating 4 }}Хорошо{{ else if eq .Rating 3 }}Нормально{{ else if eq .Rating 2 }}Не нравится{{ else }}Плохо{{ end }}
+                    </div>
+                    <div class="mt-2">{{ .Text }}</div>
+
+                    {{ if eq $.UserID .AuthorID }}
+                      <div class="mt-2">
+                        <form action="/comment/delete" method="POST" class="d-inline">
+                          <input type="hidden" name="comment_id" value="{{ .ID }}">
+                          <input type="hidden" name="game_id" value="{{ $.Game.ID }}">
+                          <button class="btn btn-sm btn-outline-danger" type="submit">Удалить</button>
+                        </form>
+                        <a href="/comment/edit?id={{ .ID }}" class="btn btn-sm btn-outline-secondary ms-1">Редактировать</a>
+                      </div>
+                    {{ end }}
+
+                  </div>
+                </div>
+              </li>
+            {{ end }}
+          </ul>
+        {{ else }}
+          <div class="alert alert-secondary">Комментариев пока нет.</div>
+        {{ end }}
+      </div>
+
+      <div class="col-md-4">
+        <h5>Оставить комментарий</h5>
+        {{ if eq .UserID 0 }}
+          <div class="alert alert-warning">Только авторизованные пользователи могут оставлять комментарии. <a href="/login">Вход</a></div>
+        {{ else }}
+          <form action="/game/comment" method="POST">
+            <input type="hidden" name="id" value="{{ .Game.ID }}">
+            <div class="mb-2">
+              <label class="form-label">Оценка</label>
+              <select name="rating" class="form-select">
+                <option value="5">Положительно</option>
+                <option value="4">Хорошо</option>
+                <option value="3" selected>Нормально</option>
+                <option value="2">Не нравится</option>
+                <option value="1">Плохо</option>
+              </select>
+            </div>
+            <div class="mb-2">
+              <label class="form-label">Комментарий</label>
+              <textarea name="text" class="form-control" rows="4" maxlength="1000"></textarea>
+            </div>
+            <button class="btn btn-primary" type="submit">Отправить</button>
+          </form>
+        {{ end }}
       </div>
     </div>
   </div>
 
+  {{ template "footer.html" . }}
 </body>
 </html>

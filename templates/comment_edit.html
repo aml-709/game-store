@@ -1,0 +1,28 @@
+{{ template "header.html" . }}
+
+<h3>Редактировать комментарий</h3>
+
+{{ $c := .EditComment }}
+<form method="POST" action="/comment/update">
+  <input type="hidden" name="comment_id" value="{{ $c.ID }}">
+  <div class="mb-2">
+    <label class="form-label">Оценка</label>
+    <select name="rating" class="form-select">
+      <option value="5" {{ if eq $c.Rating 5 }}selected{{ end }}>Положительно</option>
+      <option value="4" {{ if eq $c.Rating 4 }}selected{{ end }}>Хорошо</option>
+      <option value="3" {{ if eq $c.Rating 3 }}selected{{ end }}>Нормально</option>
+      <option value="2" {{ if eq $c.Rating 2 }}selected{{ end }}>Не нравится</option>
+      <option value="1" {{ if eq $c.Rating 1 }}selected{{ end }}>Плохо</option>
+    </select>
+  </div>
+  <div class="mb-2">
+    <label class="form-label">Комментарий</label>
+    <textarea name="text" class="form-control" rows="6">{{ $c.Text }}</textarea>
+  </div>
+  <button class="btn btn-primary" type="submit">Сохранить</button>
+  <a href="/game?id={{ $c.GameID }}" class="btn btn-link">Отмена</a>
+</form>
+
+</main>
+</body>
+</html>

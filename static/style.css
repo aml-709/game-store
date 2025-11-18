@@ -1,66 +1,299 @@
+:root{
+  --bg: #0b1220;
+  --surface: #0f1724;
+  --muted: #c9d6e6; /* светло-голубой/серый — хорошо читается на тёмном фоне */
+  --text: #e7eef8;
+  --accent: #4f8cff;
+  --accent-2: #3b6fe0;
+  --success: #28a745;
+  --danger: #e05252;
+  --radius: 10px;
+}
+
+/* Page base */
+* { box-sizing: border-box; }
+html,body { height:100%; margin:0; font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; color:var(--text); background: linear-gradient(180deg, var(--bg) 0%, #061019 400px); -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale; }
 body {
-  font-family: Arial, sans-serif;
-  padding: 20px;
-}
-
-/* When navbar is fixed we need extra top offset so page content isn't hidden */
-body.fixed-navbar {
-  padding-top: 90px; /* adjust if your navbar height differs */
-}
-
-.games {
   display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* Site container */
+.container { max-width:1100px; margin: 28px auto; padding: 0 16px; }
+
+/* Navbar (simple, works without Bootstrap) */
+.navbar {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:16px;
+  background: linear-gradient(90deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+  border:1px solid rgba(255,255,255,0.04);
+  padding:12px 18px;
+  border-radius:12px;
+  margin-bottom:20px;
+  box-shadow: 0 6px 22px rgba(2,6,23,0.6);
+}
+.navbar .brand { font-weight:700; font-size:1.15rem; color:var(--text); text-decoration:none; }
+.navbar .nav { display:flex; gap:10px; align-items:center; }
+.navbar .nav a { color:var(--muted); text-decoration:none; padding:6px 10px; border-radius:8px; }
+.navbar .nav a:hover { color:var(--text); background:rgba(255,255,255,0.02); }
+
+/* Cards / list items */
+.card, .list-group-item {
+  background: linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.015));
+  border: 1px solid rgba(255,255,255,0.04);
+  padding:12px;
+  border-radius:var(--radius);
+  color:var(--text);
+}
+
+/* Game grid */
+.game-grid .row { display:flex; flex-wrap:wrap; gap:18px; margin:0; }
+.game-grid .col { flex:1 1 200px; max-width: 220px; }
+.game-grid .card { display:flex; flex-direction:column; height:100%; overflow:hidden; transition: transform .18s ease, box-shadow .18s ease; border-radius: 12px; }
+.game-grid .card:hover { transform:translateY(-8px); box-shadow: 0 18px 40px rgba(2,6,23,0.6); }
+.poster-img { width:100%; height:150px; object-fit:cover; border-radius:8px; display:block; }
+
+/* Card body */
+.card-body { display:flex; flex-direction:column; gap:8px; padding:12px; }
+.card-title { font-size:1rem; margin:0 0 6px 0; color:var(--text); font-weight:700; }
+.card-text { color: rgba(201,214,230,0.9) !important; margin:0; }
+.card .flex-fill { min-width: 0; }
+
+/* Buttons */
+.btn {
+  display:inline-block;
+  padding:8px 12px;
+  border-radius:8px;
+  cursor:pointer;
+  border:1px solid transparent;
+  font-weight:600;
+  text-decoration:none;
+}
+.btn-primary {
+  background: linear-gradient(180deg, var(--accent), var(--accent-2));
+  color:#fff;
+  box-shadow: 0 8px 24px rgba(79,140,255,0.12);
+  border-color: rgba(0,0,0,0.12);
+}
+.btn-outline-success {
+  background: transparent;
+  color: var(--accent);
+  border:1px solid rgba(79,140,255,0.18);
+}
+.btn-sm {
+  padding:6px 10px; 
+  font-size:.875rem; 
+  border-radius:6px; 
+}
+
+/* Forms */
+.form-control, textarea, select {
+  width:100%;
+  padding:10px 12px;
+  background: rgba(255,255,255,0.02);
+  border:1px solid rgba(255,255,255,0.04);
+  color:var(--text);
+  border-radius:8px;
+  outline:none;
+}
+.form-control:focus { box-shadow: 0 6px 20px rgba(79,140,255,0.08); border-color:var(--accent); }
+
+/* Lists */
+.list-group { list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:10px; }
+.list-group-item { display:flex; justify-content:space-between; align-items:center; gap:12px; }
+
+/* Typography */
+h1,h2,h3,h4,h5 { color:var(--text); margin:0 0 10px 0; }
+p { margin:0 0 8px 0; color:var(--muted); }
+
+/* Badges */
+.badge {
+  display:inline-block;
+  padding:6px 8px;
+  border-radius:8px;
+  font-weight:600;
+  background: rgba(255,255,255,0.02);
+  color:var(--text);
+}
+
+/* Comment block */
+.comment { background: rgba(255,255,255,0.01); padding:12px; border-radius:8px; border:1px solid rgba(255,255,255,0.03); margin-bottom:10px; }
+.comment .meta { display:flex; justify-content:space-between; gap:10px; align-items:center; color:var(--muted); font-size:.9rem; }
+
+/* Utility */
+.text-muted { color: rgba(201,214,230,0.9) !important; } /* заметнее на тёмном фоне */
+.muted { color: rgba(201,214,230,0.85) !important; }
+.small { color: rgba(201,214,230,0.8) !important; }
+
+/* улучшение читаемости для card-text и других схожих классов */
+.card-text { color: rgba(201,214,230,0.9) !important; margin:0; }
+
+/* Footer styles */
+.site-footer {
+  margin-top: auto;
+  margin-top: 36px;
+  padding: 22px 18px;
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.015));
+  border: 1px solid rgba(255,255,255,0.04);
+  color: var(--muted);
+  position: static;
+  left: 0;
+  right: 0;
+}
+
+.site-footer.fixed-footer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 1100;
+  border-radius: 0; /* avoid rounded corners when fixed */
+  box-shadow: 0 -6px 24px rgba(2,6,23,0.6);
+}
+
+.site-footer .footer-inner {
+  max-width: 1100px;
+  margin: 0 auto;
+  display: flex;
+  gap: 18px;
+  align-items: center;
+  justify-content: space-between;
   flex-wrap: wrap;
-  gap: 20px;
 }
 
-.game {
-  border: 1px solid #ddd;
-  padding: 10px;
-  width: 200px;
-  text-align: center;
-  border-radius: 8px;
+.site-footer .footer-left,
+.site-footer .footer-center,
+.site-footer .footer-right {
+  min-width: 160px;
 }
 
-.admin-form input, .admin-form textarea {
-  width: 300px;
-  padding: 6px;
+/* Left block */
+.site-footer .brand {
+  font-weight: 700;
+  color: var(--text);
+  text-decoration: none;
+  font-size: 1.05rem;
+}
+.site-footer .small { color: var(--muted); margin-top:6px; }
+
+/* Center nav */
+.site-footer .footer-nav {
+  display:flex;
+  gap:12px;
+  align-items:center;
+  justify-content:center;
+}
+.site-footer .footer-nav a {
+  color: var(--muted);
+  text-decoration: none;
+  padding:6px 8px;
+  border-radius:8px;
+}
+.site-footer .footer-nav a:hover {
+  color: var(--text);
+  background: rgba(255,255,255,0.015);
 }
 
-/* Poster image sizing for gallery */
-.poster-img {
-  width: 100%;
-  height: 140px; /* уменьшенный размер постера для 5 в ряд */
-  object-fit: cover;
-  display: block;
-  border-top-left-radius: .25rem;
-  border-top-right-radius: .25rem;
+/* Right block */
+.site-footer .footer-right { text-align:right; }
+.site-footer .footer-right .small { display:block; margin-bottom:6px; }
+
+/* Social icons */
+.site-footer .social {
+  display:inline-flex;
+  gap:8px;
+  align-items:center;
+  justify-content:flex-end;
+}
+.site-footer .social-link {
+  width:36px;
+  height:36px;
+  border-radius:10px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.03);
+  color: var(--text);
+  text-decoration: none;
+  font-weight:700;
+}
+.site-footer .social-link:hover {
+  background: linear-gradient(180deg, var(--accent), var(--accent-strong));
+  color: #fff;
+  box-shadow: 0 8px 22px rgba(79,140,255,0.12);
 }
 
-/* Make card titles truncate */
-.card-title.text-truncate {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+/* Более тёмный, спокойный стиль для блока комментариев и оценки */
+.comment,
+.list-group-item.comment {
+  background: rgba(6, 10, 14, 0.65); /* темнее фон, менее "светлый" */
+  border: 1px solid rgba(255,255,255,0.025);
+  color: var(--text);
 }
 
-/* Ensure card heights are consistent */
-.card.h-100 {
-  display: flex;
-  flex-direction: column;
+/* Метаданные (имя, дата) — чуть более приглушённые */
+.comment .meta,
+.list-group-item .meta,
+.comment small,
+.list-group-item small {
+  color: rgba(201,214,230,0.72) !important; /* чуть темнее, но читаемо */
 }
 
-/* Card body should allow footer buttons to stick to bottom */
-.card-body {
-  flex: 1 1 auto;
-  display: flex;
-  flex-direction: column;
+/* Текст комментария — основной, но не слишком яркий */
+.comment .text, .comment .Text, .comment .card-text,
+.list-group-item .card-text {
+  color: rgba(201,214,230,0.86) !important;
 }
 
-/* Slight spacing for grid */
-.game-grid { margin-top: 1rem; }
+/* Оценка: сделать её менее "яркой" и визуально отделить */
+.comment .rating,
+.list-group-item .rating,
+.comment .rating-text,
+.list-group-item .rating-text {
+  display:inline-block;
+  padding:3px 8px;
+  border-radius:6px;
+  background: rgba(255,255,255,0.02);
+  color: rgba(201,214,230,0.84);
+  font-weight:600;
+  margin-left:6px;
+}
 
-/* Responsive tweaks */
+/* textarea / поле ввода комментария — сделать фон более спокойным */
+.form-control, textarea.form-control {
+  background: rgba(0,0,0,0.36);
+  border: 1px solid rgba(255,255,255,0.03);
+  color: var(--text);
+}
+
+/* кнопки внутри комментариев — чуть ближе по тону к теме */
+.comment .btn, .list-group-item .btn {
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.03);
+  color: var(--text);
+}
+
+/* небольшой откат для мобильных */
 @media (max-width: 576px) {
-  .poster-img { height: 120px; }
+  .comment, .list-group-item.comment { padding:10px; }
+  .comment .rating, .list-group-item .rating { padding:2px 6px; }
 }
+/* Responsive */
+@media (max-width:900px) {
+  .game-grid .col { flex:1 1 45%; max-width:48%; }
+}
+@media (max-width:600px) {
+  .game-grid .col { flex:1 1 100%; max-width:100%; }
+  .poster-img { height:140px; }
+  .navbar { flex-direction:column; align-items:flex-start; gap:8px; }
+}
+@media (max-width: 800px) {
+  .site-footer .footer-inner { gap:12px; padding: 16px; }
+  .site-footer .footer-right { text-align:left; margin-top:8px; }
+}
+

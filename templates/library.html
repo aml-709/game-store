@@ -5,14 +5,20 @@
 
     {{ template "header.html" . }}
 
-  <h1>Библиотека</h1>
-  {{if .}}
-    <ul>
-      {{range .}}<li>{{.Title}} — <a href="/game?id={{.ID}}">Открыть</a></li>{{end}}
-    </ul>
-  {{else}}
-    <p>Пусто — купите игру!</p>
-  {{end}}
-  <p><a href="/">Магазин</a></p>
+<h1>Моя библиотека</h1>
+
+{{ if .Games }}
+  <ul class="list-group">
+    {{ range .Games }}
+      <li class="list-group-item">
+        <a href="/game?id={{ .ID }}">{{ .Title }}</a>
+      </li>
+    {{ end }}
+  </ul>
+{{ else }}
+  <div class="alert alert-info">Библиотека пуста</div>
+{{ end }}
+
+{{ template "footer.html" . }}
 </body>
 </html>

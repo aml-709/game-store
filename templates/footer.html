@@ -1,0 +1,48 @@
+{{ define "footer.html" }}
+<footer class="site-footer">
+  <div class="container footer-inner">
+    <div class="footer-left">
+      <a class="brand" href="/">Game Store</a>
+      <p class="small text-muted">Магазин инди‑игр · Безопасные покупки · Поддержка 24/7</p>
+    </div>
+    <div class="footer-center">
+      <nav class="footer-nav">
+        <a href="/">Магазин</a>
+        <a href="/library">Библиотека</a>
+        <a href="/account">Аккаунт</a>
+        <a href="/purchases">Заказы</a>
+      </nav>
+    </div>
+    <div class="footer-right">
+      <p class="small text-muted">© 2025 Game Store</p>
+      <div class="social" style="display:inline-flex; gap:8px; margin-top:6px;">
+        <a href="#" class="social-link" aria-label="twitter">T</a>
+        <a href="#" class="social-link" aria-label="github">G</a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<script>
+(function(){
+  function updateFooter() {
+    var footer = document.querySelector('footer.site-footer');
+    if (!footer) return;
+    // needFixed = content taller than viewport
+    var needFixed = document.body.scrollHeight > window.innerHeight;
+    if (needFixed) {
+      footer.classList.add('fixed-footer');
+      document.body.classList.add('has-fixed-footer');
+      // set exact padding-bottom so content is not overlapped
+      var h = footer.getBoundingClientRect().height;
+      document.body.style.paddingBottom = h + 'px';
+    } else {
+      footer.classList.remove('fixed-footer');
+      document.body.classList.remove('has-fixed-footer');
+      document.body.style.paddingBottom = '';
+    }
+  }
+  window.addEventListener('load', updateFooter);
+  window.addEventListener('resize', updateFooter);
+  // if your app dynamically loads content, call updateFooter() after content changes
+})();

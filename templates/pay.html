@@ -5,11 +5,12 @@
 
     {{ template "header.html" . }}
 <h1>Оплата (мок)</h1>
-<p>Нажмите кнопку, чтобы симулировать оплату.</p>
+<p>Нажмите кнопку, чтобы завершить оплату и получить игры в библиотеке.</p>
+
 <form method="POST" action="/pay">
   <input type="hidden" name="purchase_id" value="{{.PurchaseID}}">
-  <input type="hidden" name="email" value="{{.Email}}">
-  <button type="submit">Оплатить</button>
+  <button type="submit" class="btn btn-primary">Оплатить</button>
 </form>
+
 </body>
 </html>
